@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Union, Sequence
+from typing import Any, List, Dict, Union, Sequence, Protocol
 from collections import deque
 
 
@@ -97,6 +97,28 @@ class LogProcessor(DataProcessor):
             self.file.append(f"{data['log_level']}: {data['log_message']}")
 
 
+class ExportPlugin(Protocol):
+    def process_output(self, data: list[tuple[int, str]]) -> None:
+        ...
+
+
+class CSVPlugin():
+    def process_output(self, data: list[tuple[int, str]]) -> None:
+        print("CSV Output:")
+        csv_lst = []
+        for d in data:
+            index, value = d
+            csv_lst.append(value)
+        print(",".join(csv_lst))
+
+
+class JSONPlugin():
+    def process_output(self, data: list[tuple[int, str]]) -> None:
+        items = [f'"item_{i}": "{v}"' for i, v in data]
+        print("JSON Output:")
+        print("{" + ", ".join(items) + "}")
+
+
 class DataStream():
     def __init__(self):
         self.processors = []
@@ -119,6 +141,15 @@ class DataStream():
                 print(f"DataStream error - Can't process element in "
                       f"stream: {elem}")
 
+    def output_pipeline(self, nb: int, plugin: ExportPlugin) -> None:
+        for proc in self.processors:
+            lst_output = []
+            for r in range(nb):
+                if not proc.file:
+                    break
+                lst_output.append(proc.output())
+            plugin.process_output(lst_output)
+
     def print_processors_stats(self) -> None:
         for proc in self.processors:
             name = proc.__class__.__name__
@@ -126,42 +157,49 @@ class DataStream():
                   f"remaining {len(proc.file)} on processor")
 
 
-def only_numeric_proc(data: Any) -> None:
-    manager = DataStream()
-    print("Registering Numeric Processor\n")
-    print(f"Send first batch of data on stream: {data}")
-    manager.register_processor(NumericProcessor())
-    manager.process_stream(data)
-    print("== DataStream statistics ==")
-    manager.print_processors_stats()
-
-
 if __name__ == "__main__":
-    print("=== Code Nexus - Data Stream ===")
-    manager = DataStream()
-    data = ['Hello world', [3.14, -1, 2.71],
-            [{'log_level': 'WARNING',
-              'log_message':
-              'Telnet access! Use ssh instead'}, {
-                  'log_level': 'INFO', 'log_message':
-                  'User wil isconnected'}], 42, ['Hi', 'five']]
-    manager.process_stream(data)
+    print("=== Code Nexus - Data Pipeline ===\n")
 
-    only_numeric_proc(data)
-    print("\nRegistering other data processors")
-    print("Send the same batch again")
+    data_csv = ['Hello world', [3.14, -1, 2.71],
+                [{'log_level': 'WARNING', 'log_message':
+                  'Telnet access! Use ssh instead'}, {
+                      'log_level': 'INFO', 'log_message':
+                      'User wil is connected'}], 42, ['Hi', 'five']]
+    print("Initialize Data Stream...")
     manager = DataStream()
+    print("== DataStream statistics ==")
+    manager.process_stream(data_csv)
+    print("Registering Processors\n")
     lst_proc = [NumericProcessor(), TextProcessor(), LogProcessor()]
     for lst in lst_proc:
         manager.register_processor(lst)
-    manager.process_stream(data)
-    print("== DataStream statistics ==")
+    print(f"Send first batch of data on stream: {data_csv}")
+    manager.process_stream(data_csv)
+    print("\n== DataStream statistics ==")
     manager.print_processors_stats()
-    num_remain = [1, 1, 1]
-    print(f"\nConsume some elements from the data processors: Numeric "
-          f"{num_remain[0]}, Text {num_remain[1]}, Log {num_remain[2]}")
-    for proc, num in zip(lst_proc, num_remain):
-        for r in range(num):
-            proc.output()
-    print("== DataStream statistics ==")
+    nb_csv = 3
+
+    print(f"\nSend {nb_csv} processed data from each processor "
+          "to a CSV plugin:")
+    manager.output_pipeline(nb_csv, CSVPlugin())
+
+    print("\n== DataStream statistics ==")
+    manager.print_processors_stats()
+
+    data_json = [21, ['I love AI', 'LLMs are wonderful', 'Stay healthy'],
+                 [{'log_level': 'ERROR', 'log_message': '500 server crash'}, {
+                     'log_level': 'NOTICE', 'log_message':
+                     'Certificate expires in 10 days'}], [
+                         32, 42, 64, 84, 128, 168], 'World hello']
+    print(f"\nSend another batch of data:{data_json}")
+    nb_json = 5
+    manager.process_stream(data_json)
+
+    print("\n== DataStream statistics ==")
+    manager.print_processors_stats()
+
+    print(f"\nSend {nb_json} processed data from each processor to a "
+          "JSON plugin:")
+    manager.output_pipeline(nb_json, JSONPlugin())
+    print("\n== DataStream statistics ==")
     manager.print_processors_stats()
