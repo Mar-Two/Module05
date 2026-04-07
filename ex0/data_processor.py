@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Union, Sequence
+from typing import Any, List, Dict, Union
 from collections import deque
 
 
@@ -34,8 +34,7 @@ class NumericProcessor(DataProcessor):
             return True
         return False
 
-    def ingest(self, data: Union[Sequence[Union[int, float]],
-                                 int,  float]) -> None:
+    def ingest(self, data: Union[List[Union[int, float]], int, float]) -> None:
         if not self.validate(data):
             raise ValueError("Improper numeric data")
         if isinstance(data, list):

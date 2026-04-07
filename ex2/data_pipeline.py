@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Union, Sequence, Protocol
+from typing import Any, List, Dict, Union, Protocol
 from collections import deque
 
 
@@ -35,8 +35,7 @@ class NumericProcessor(DataProcessor):
             return True
         return False
 
-    def ingest(self, data: Union[Sequence[Union[int, float]],
-                                 int,  float]) -> None:
+    def ingest(self, data: Union[List[Union[int, float]], int, float]) -> None:
         if not self.validate(data):
             raise ValueError("Improper numeric data")
         if isinstance(data, list):
@@ -121,7 +120,7 @@ class JSONPlugin():
 
 class DataStream():
     def __init__(self):
-        self.processors = []
+        self.processors: List[DataProcessor] = []
 
     def register_processor(self, proc: DataProcessor) -> None:
         self.processors.append(proc)
@@ -145,9 +144,10 @@ class DataStream():
         for proc in self.processors:
             lst_output = []
             for r in range(nb):
-                if not proc.file:
+                try:
+                    lst_output.append(proc.output())
+                except ValueError:
                     break
-                lst_output.append(proc.output())
             plugin.process_output(lst_output)
 
     def print_processors_stats(self) -> None:
