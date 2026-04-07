@@ -148,7 +148,8 @@ class DataStream():
                     lst_output.append(proc.output())
                 except ValueError:
                     break
-            plugin.process_output(lst_output)
+            if lst_output:
+                plugin.process_output(lst_output)
 
     def print_processors_stats(self) -> None:
         for proc in self.processors:
